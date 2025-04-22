@@ -29,11 +29,13 @@ def test_parser_string(test_input, excepted_result):
     #     generate_filter(TEST_HOSTNAME, TEST_TAGS, filter_string=test_input)
     #     == excepted_result
     # )
-    res = generate_filter(
-        filter_string=test_input,
-        hostname=TEST_HOSTNAME,
-        tags=TEST_TAGS
+    result = generate_filter(
+        filter_string=test_input, hostname=TEST_HOSTNAME, tags=TEST_TAGS
     )
-    print(f"{res=}")
+    print(f"{result=}")
     print(f"{excepted_result=}")
-    assert res == excepted_result
+
+    assert result == excepted_result
+    from deepdiff import DeepDiff
+
+    # assert not DeepDiff(result, excepted_result, ignore_order=True)

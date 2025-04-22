@@ -16,22 +16,27 @@ def sort_blocks(node):
         sorted_node = {}
         for key, value in node.items():
             if key in ("AND", "OR") and isinstance(value, list):
+                # Рекурсивно сортируем каждый элемент
                 value = [sort_blocks(item) for item in value]
-                # Сортировка по key, затем по value
-                value = sorted(
-                    value,
-                    key=lambda x: (
-                        x.get("key", "") if isinstance(x, dict) else "",
-                        x.get("value", "") if isinstance(x, dict) else str(x),
-                    ),
-                )
+
+                # Сортируем, только если все элементы — обычные выражения, а не логические блоки
+                if all(isinstance(item, dict) and "key" in item and "operator" in item for item in value):
+                    value = sorted(
+                        value,
+                        key=lambda x: (x["key"], x["value"])
+                    )
+
             else:
                 value = sort_blocks(value)
             sorted_node[key] = value
         return sorted_node
+
     elif isinstance(node, list):
         return [sort_blocks(item) for item in node]
+
     return node
+
+
 
 
 
@@ -65,34 +70,83 @@ def build_nested_and_chain(conditions: list[dict]) -> dict:
     return nested
 
 
-def parse_filter_string(filter_string: str) -> dict:
-    """
-    Учитывает приоритет AND > OR, поддерживает вложенные OR внутри OR.
-    """
-    filter_string = filter_string.strip()
 
-    # Разбиваем по OR
-    or_parts = [p.strip() for p in re.split(r"\bOR\b", filter_string)]
-    or_blocks = []
-
-    for or_part in or_parts:
-        # Внутри каждого OR-блока — ищем AND
-        and_parts = [p.strip() for p in re.split(r"\bAND\b", or_part)]
-        parsed = [parse_expression(p) for p in and_parts]
-
-        if len(parsed) == 1:
-            # Просто одно условие
-            or_blocks.append(parsed[0])
+def tokenize_preserve_logic(s: str) -> list:
+    tokens = []
+    current = []
+    parts = s.strip().split()
+    i = 0
+    while i < len(parts):
+        if parts[i] in ("AND", "OR"):
+            if current:
+                tokens.append(" ".join(current))
+                current = []
+            tokens.append(parts[i])
         else:
-            # Вложенная AND-группа
-            or_blocks.append(build_nested_and_chain(parsed))
+            current.append(parts[i])
+        i += 1
+    if current:
+        tokens.append(" ".join(current))
+    return tokens
+def parse_expression_group_final(tokens: list[str]) -> dict:
+    def split_by_operator(tokens, op):
+        groups = []
+        current = []
+        for token in tokens:
+            if token == op:
+                if current:
+                    groups.append(current)
+                    current = []
+            else:
+                current.append(token)
+        if current:
+            groups.append(current)
+        return groups
 
-    # Если один OR-блок — просто AND с ним
-    if len(or_blocks) == 1:
-        return {"AND": [or_blocks[0]]}
+    def parse_atom(expr: str) -> dict:
+        return parse_expression(expr)
 
-    # Если есть несколько OR-блоков, то обернём в OR
-    return {"AND": [{"OR": or_blocks}]}
+    def parse_and_group(group: list[str]) -> dict:
+        and_tokens = split_by_operator(group, "AND")
+        expressions = [parse_atom(" ".join(part)) for part in and_tokens]
+        return build_nested_and_chain(expressions)
+
+    # Разделяем по OR
+    or_groups = split_by_operator(tokens, "OR")
+    parsed_groups = []
+
+    for group in or_groups:
+        if any("AND" in g for g in group if isinstance(g, str)):
+            and_exprs = []
+            sub_expr = []
+            for item in group:
+                if item == "AND":
+                    if sub_expr:
+                        and_exprs.append(" ".join(sub_expr))
+                        sub_expr = []
+                else:
+                    sub_expr = item.split() if not sub_expr else sub_expr + item.split()
+            if sub_expr:
+                and_exprs.append(" ".join(sub_expr))
+            and_nodes = [parse_expression(e) for e in and_exprs]
+            parsed_groups.append(build_nested_and_chain(and_nodes))
+        else:
+            parsed_groups.append(parse_atom(" ".join(group)))
+
+    # Специальное поведение: если более двух OR-блоков, последние два вложим в OR
+    if len(parsed_groups) > 2:
+        *initial, penultimate, ultimate = parsed_groups
+        nested_or = {"OR": [penultimate, ultimate]}
+        return {"OR": initial + [nested_or]}
+    elif len(parsed_groups) == 2:
+        return {"OR": parsed_groups}
+    else:
+        return parsed_groups[0]
+
+def parse_filter_string(filter_string: str) -> dict:
+    tokens = tokenize_preserve_logic(filter_string)
+    ast = parse_expression_group_final(tokens)
+    return {"AND": [ast]}
 
 
 
@@ -116,3 +170,19 @@ def generate_filter(
         }
     }
     return sort_blocks(filter)
+
+
+tokens_fixed = tokenize_preserve_logic("Теги = Application OR Важность != Average OR КЕ = one AND Теги == Inventory")
+ast_fixed = parse_expression_group_final(tokens_fixed)
+# print(ast_fixed)
+
+# print(parse_filter_string("Теги = Application OR Важность != Average OR КЕ = one AND Теги == Inventory"))
+
+TEST_HOSTNAME = "FAKE32"
+TEST_TAGS = ["OS:Linux"]
+res = generate_filter(
+    filter_string="Теги = Application OR Важность != Average OR КЕ = one AND Теги == Inventory",
+    hostname=TEST_HOSTNAME,
+    tags=TEST_TAGS
+)
+print(f"{res=}")
