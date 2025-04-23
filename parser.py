@@ -27,7 +27,7 @@ def _parse_expression(expression: str) -> dict | None:
     raise ValueError(f"Не удалось распарсить фильтр: {expression}")
 
 
-def create_nested_and(AND_PARTS, last_result: bool = True) -> dict:
+def create_and_block(AND_PARTS, last_result: bool = True) -> dict:
     AND_PARTS.reverse()
     result = {"AND": []}
     current = result["AND"]
@@ -58,45 +58,50 @@ def get_first_operator(filter_string: str) -> str:
 
 
 def create_or_block(or_expressions: list[str], reverse: bool = True) -> dict:
-    result = {"AND": []}
-    top_or_block = {"OR": []}
-    simple_ors = []
-    and_blocks = []
-
     if reverse:
-        or_expressions = list(reversed(or_expressions))
+        or_expressions.reverse()
 
-    for or_expression in or_expressions:
-        and_expressions = [p.strip() for p in re.split(r"(\bAND\b)", or_expression)]
-        if len(and_expressions) > 1:
-            parsed_and = create_nested_and(and_expressions, last_result=False)
-            and_blocks.append(parsed_and)
+    simple_ors, and_blocks = [], []
+
+    for expr in or_expressions:
+        and_parts = [p.strip() for p in re.split(r"(\bAND\b)", expr)]
+        if len(and_parts) > 1:
+            and_blocks.append(create_and_block(and_parts, last_result=False))
         else:
-            parsed_simple = _parse_expression(or_expression)
-            simple_ors.append(parsed_simple)
+            simple_ors.append(_parse_expression(expr.strip()))
 
-    # 🔁 Объединяем простые OR в один OR-блок, если их несколько
-    if len(simple_ors) == 1:
-        simple_or_expr = simple_ors[0]
-    elif simple_ors:
-        nested = simple_ors[-1]
-        for part in reversed(simple_ors[:-1]):
-            nested = {"OR": [part, nested]}
-        simple_or_expr = nested
-    else:
-        simple_or_expr = None
+    result = {"AND": []}
 
-    # 🔁 Объединяем AND и OR в один OR-блок
+    # Если есть AND-блоки
     if and_blocks:
-        top_or_block["OR"].extend(and_blocks)
-        if simple_or_expr:
-            top_or_block["OR"].append(simple_or_expr)
-        result["AND"].append(top_or_block)
-    elif simple_or_expr:
-        result["AND"].append(simple_or_expr)
+        or_block = {"OR": and_blocks}
+        if simple_ors:
+            # Построим вложенную OR-цепочку из простых выражений
+            nested_or = build_nested_or(simple_ors)
+            or_block["OR"].append(nested_or)
+        result["AND"].append(or_block)
+    elif simple_ors:
+        # Только OR — строим вложенность
+        result["AND"].append(build_nested_or(simple_ors))
     if not reverse:
-        result["AND"][0]["OR"].reverse()
+        result['AND'][0]['OR'].reverse()
     return result
+
+
+def build_nested_or(expressions: list[dict] | None = None) -> dict | dict:
+    """
+    Создаёт вложенные OR-выражения, например:
+    [A, B, C] -> {"OR": [A, {"OR": [B, C]}]}
+    """
+    if not expressions:
+        return {}
+    if len(expressions) == 1:
+        return expressions[0]
+
+    nested = expressions[-1]
+    for expr in reversed(expressions[:-1]):
+        nested = {"OR": [expr, nested]}
+    return nested
 
 
 def parse_filter_string(filter_string: str) -> dict:
@@ -112,11 +117,9 @@ def parse_filter_string(filter_string: str) -> dict:
         if len(and_expressions) == 1:
             return {"AND": [_parse_expression(and_expressions[0])]}
         # Есть Вложенные AND
-        else:
-            return create_nested_and(and_expressions)
+        return create_and_block(and_expressions)
     # Если есть OR, то начинаем обработку
-    else:
-        return create_or_block(or_expressions, first_operator == "OR")
+    return create_or_block(or_expressions, first_operator == "OR")
 
 
 def generate_filter(
