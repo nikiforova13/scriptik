@@ -22,6 +22,9 @@ TEST_TAGS = ["OS:Linux"]
         (input_string_9, parse_result_9),
         (input_string_10, parse_result_10),
         (input_string_11, parse_result_11),
+        (input_string_12, parse_result_12),
+        (input_string_13, parse_result_13),
+        (input_string_14, parse_result_14),
     ],
 )
 def test_parser_string(test_input, excepted_result):
@@ -36,6 +39,6 @@ def test_parser_string(test_input, excepted_result):
     print(f"{excepted_result=}")
 
     assert result == excepted_result
-    from deepdiff import DeepDiff
-
+    # from deepdiff import DeepDiff
+    # print(f'{DeepDiff(result, excepted_result, ignore_order=True)=}')
     # assert not DeepDiff(result, excepted_result, ignore_order=True)

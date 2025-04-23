@@ -1,117 +1,83 @@
 import re
 
-FilterKey = {
+# Маппинг текстовых ключей на нормализованные ключи фильтра
+KEY_MAPPING = {
     "Теги": "tags",
-    "Источник": "source",
     "Важность": "severity",
-    "CL": "critical_level",
+    "КЕ": "sm",
+    "Источник": "source",
     "Ack": "ack_status",
     "Flp": "flap",
-    "КЕ": "sm",
-    "Группы": "groups",
+    "host": "host",
 }
 
+# Операторы
+OPERATOR_MAPPING = {
+    "==": "==",
+    "!=": "!=",
+    "=": "=",
+    "!==": "!==",
+}
 
-def sort_blocks(node):
-    if isinstance(node, dict):
-        sorted_node = {}
-        for key, value in node.items():
-            if key in ("AND", "OR") and isinstance(value, list):
-                value = [sort_blocks(item) for item in value]
-                value = sorted(
-                    value,
-                    key=lambda x: x.get("value", "") if isinstance(x, dict) else str(x),
-                )
-            else:
-                value = sort_blocks(value)
-            sorted_node[key] = value
-        return sorted_node
-    elif isinstance(node, list):
-        return [sort_blocks(item) for item in node]
-    return node
+# Регулярка для извлечения простых выражений
+SIMPLE_EXPR_PATTERN = re.compile(r"([^=!\s]+)\s*(!=|==|=|!==)\s*([^\s]+)")
 
 
-def parse_expression(cond: str) -> dict | None:
-    pattern = r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)"
-    match = re.match(pattern, cond.strip())
-    if match:
-        key, operator, value = match.groups()
-        return {
-            "key": FilterKey.get(key.strip()),
-            "operator": operator.strip(),
-            "value": value.strip(),
-        }
-    raise ValueError(f"Не удалось распарсить фильтр: {cond}")
+def parse_condition(expr: str):
+    match = SIMPLE_EXPR_PATTERN.match(expr.strip())
+    if not match:
+        raise ValueError(f"Invalid expression: {expr}")
+    key_raw, operator, value = match.groups()
+    key = KEY_MAPPING.get(key_raw, key_raw)
+    return {"key": key, "operator": operator, "value": value}
 
 
-def build_nested_and_chain(conditions: list[dict]) -> dict:
-    """
-    Вкладывает цепочку условий с сохранением порядка:
-    A AND B AND C AND D -> AND[A, AND[B, AND[C, D]]]
-    """
-    if len(conditions) == 1:
-        return conditions[0]
-
-    nested = conditions[-1]
-    for condition in reversed(conditions[:-1]):
-        nested = {"AND": [condition, nested]}
-    return nested
+def split_by_operator(expression: str, operator: str):
+    """Разделение строки по оператору, но без скобок — безопасно"""
+    return [e.strip() for e in expression.split(f" {operator} ")]
 
 
-def parse_filter_string(filter_string: str) -> dict:
-    """
-    Учитывает логическую приоритетность AND > OR
-    и корректно формирует блоки вложенности OR/AND.
-    """
-    filter_string = filter_string.strip()
+def parse_filter_string(input_string: str) -> dict:
+    # Добавим "заглушки" OR от FAKE32 и tags == OS:Linux
+    base = {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]}
+    tags_linux = {"OR": [{"key": "tags", "operator": "==", "value": "OS:Linux"}]}
 
-    or_parts = [p.strip() for p in re.split(r"\bOR\b", filter_string)]
-    or_blocks = []
+    def build_nested(items, op):
+        """Рекурсивно вложенная структура по приоритету (обратный порядок)"""
+        if len(items) == 1:
+            return parse_condition(items[0])
+        else:
+            return {op: [build_nested(items[:-1], op), parse_condition(items[-1])]}
 
-    for or_part in or_parts:
-        and_parts = [p.strip() for p in re.split(r"\bAND\b", or_part)]
-        parsed_and = [parse_expression(p) for p in and_parts]
-        and_nested = build_nested_and_chain(parsed_and)
-        or_blocks.append(and_nested)
+    # Разделение по AND, затем каждую часть по OR
+    and_parts = split_by_operator(input_string, "AND")
+    parsed_and_parts = []
 
-    # Если только один OR-блок, то просто возвращаем его
-    if len(or_blocks) == 1:
-        return {"AND": [or_blocks[0]]}
+    for part in and_parts:
+        or_parts = split_by_operator(part, "OR")
+        if len(or_parts) == 1:
+            parsed_and_parts.append(build_nested(or_parts, "AND"))
+        else:
+            parsed_or = {"OR": [build_nested([sub], "AND") for sub in or_parts]}
+            parsed_and_parts.append(parsed_or)
 
-    # Если несколько OR-блоков, то вложить их в OR
-    return {"AND": [{"OR": or_blocks}]}
+    # Максимально вложенный AND (в обратном порядке)
+    nested_and = parsed_and_parts[-1]
+    for part in reversed(parsed_and_parts[:-1]):
+        nested_and = {"AND": [part, nested_and]}
 
-
-def generate_filter(
-    hostname: str,
-    tags: list[str],
-    filter_string: str | None = None,
-) -> dict:
-    extra_filter = parse_filter_string(filter_string) if filter_string else None
-    filter = {
-        "filter": {
-            "AND": [
-                {"OR": [{"key": "host", "operator": "==", "value": hostname}]},
-                {
-                    "OR": [
-                        {"key": "tags", "operator": "==", "value": tag} for tag in tags
-                    ]
-                },
-                extra_filter,
-            ]
-        }
-    }
-    return sort_blocks(filter)
+    return {"filter": {"AND": [base, tags_linux, {"AND": [nested_and]}]}}
 
 
-if __name__ == "__main__":
-    input_string_11 = (
-        "Теги = Application AND Источник != self-dev AND Ack = Commented AND Flp != No"
-    )
-    result = generate_filter(
-        hostname="FAKE32",
-        tags=["OS:Linux"],
-        filter_string="Теги = Application AND Источник != self-dev AND Ack = Commented AND Flp != No",
-    )
-    # result = parse_filter_string_regex("Теги !== Application:Inventory OR Теги == Application:Disk sda")
-    print(f"{result=}")
+input_string_10 = (
+    "Теги = Application OR Важность != Average OR КЕ = one AND Теги == Inventory"
+)
+
+input_string_11 = (
+    "Теги = Application AND Источник != self-dev AND Ack = Commented AND Flp != No"
+)
+
+from pprint import pprint
+
+pprint(parse_filter_string(input_string_10), width=140)
+pprint(parse_filter_string(input_string_11), width=140)

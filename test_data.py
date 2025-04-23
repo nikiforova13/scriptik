@@ -259,3 +259,126 @@ parse_result_11 = {
         ]
     }
 }
+
+input_string_12 = "Теги !== TAG1 OR Теги != TAG2 OR Теги != ENV: TEST OR Теги != Application: Disk sda OR Теги !== AA:AA"
+parse_result_12 = {
+    "filter": {
+        "AND": [
+            {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
+            {"OR": [{"key": "tags", "operator": "==", "value": "OS:Linux"}]},
+            {
+                "AND": [
+                    {
+                        "OR": [
+                            {"key": "tags", "operator": "!==", "value": "AA:AA"},
+                            {
+                                "OR": [
+                                    {
+                                        "key": "tags",
+                                        "operator": "!=",
+                                        "value": "Application: Disk sda",
+                                    },
+                                    {
+                                        "OR": [
+                                            {
+                                                "key": "tags",
+                                                "operator": "!=",
+                                                "value": "ENV: TEST",
+                                            },
+                                            {
+                                                "OR": [
+                                                    {
+                                                        "key": "tags",
+                                                        "operator": "!=",
+                                                        "value": "TAG2",
+                                                    },
+                                                    {
+                                                        "key": "tags",
+                                                        "operator": "!==",
+                                                        "value": "TAG1",
+                                                    },
+                                                ]
+                                            },
+                                        ]
+                                    },
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            },
+        ]
+    }
+}
+
+input_string_13 = "Теги != Application:Inventory AND Теги = 100 OR Группы != group1"
+parse_result_13 = {
+    "filter": {
+        "AND": [
+            {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
+            {"OR": [{"key": "tags", "operator": "==", "value": "OS:Linux"}]},
+            {
+                "AND": [
+                    {
+                        "OR": [
+                            {"key": "groups", "operator": "!=", "value": "group1"},
+                            {
+                                "AND": [
+                                    {"key": "tags", "operator": "=", "value": "100"},
+                                    {
+                                        "key": "tags",
+                                        "operator": "!=",
+                                        "value": "Application:Inventory",
+                                    },
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            },
+        ]
+    }
+}
+
+
+input_string_14 = "Теги != Application:Inventory AND Теги = 100 AND Группы != group1 OR Теги == tag_test"
+parse_result_14 = {
+    "filter": {
+        "AND": [
+            {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
+            {"OR": [{"key": "tags", "operator": "==", "value": "OS:Linux"}]},
+            {
+                "AND": [
+                    {
+                        "OR": [
+                            {"key": "tags", "operator": "==", "value": "tag_test"},
+                            {
+                                "AND": [
+                                    {
+                                        "key": "groups",
+                                        "operator": "!=",
+                                        "value": "group1",
+                                    },
+                                    {
+                                        "AND": [
+                                            {
+                                                "key": "tags",
+                                                "operator": "=",
+                                                "value": "100",
+                                            },
+                                            {
+                                                "key": "tags",
+                                                "operator": "!=",
+                                                "value": "Application:Inventory",
+                                            },
+                                        ]
+                                    },
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            },
+        ]
+    }
+}
