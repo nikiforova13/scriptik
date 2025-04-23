@@ -13,9 +13,9 @@ FilterKey = {
 }
 
 
-def _parse_expression(cond: str) -> dict | None:
+def _parse_expression(expression: str) -> dict | None:
     pattern = r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)"
-    match = re.match(pattern, cond.strip())
+    match = re.match(pattern, expression.strip())
     if match:
         key, operator, value = match.groups()
         return {
@@ -24,7 +24,7 @@ def _parse_expression(cond: str) -> dict | None:
             "value": value.strip(),
         }
 
-    raise ValueError(f"Не удалось распарсить фильтр: {cond}")
+    raise ValueError(f"Не удалось распарсить фильтр: {expression}")
 
 
 def create_nested_and(AND_PARTS, last_result: bool = True) -> dict:
@@ -34,9 +34,7 @@ def create_nested_and(AND_PARTS, last_result: bool = True) -> dict:
     i = 0
 
     while i < len(AND_PARTS):
-
         current_elem = AND_PARTS[i]
-
         if current_elem == "AND":
             # Проверка: есть ли элемент после AND и есть ли что-то после элемента него
             if (i + 2) < len(
@@ -53,66 +51,28 @@ def create_nested_and(AND_PARTS, last_result: bool = True) -> dict:
     return {"AND": [result]} if last_result else result
 
 
-def reverse_logic_order(obj):
-    if isinstance(obj, dict):
-        new_obj = {}
-        for key, value in obj.items():
-            if key in ("AND", "OR") and isinstance(value, list):
-                # Реверсим список и рекурсивно обрабатываем элементы
-                new_obj[key] = [reverse_logic_order(v) for v in reversed(value)]
-            else:
-                new_obj[key] = reverse_logic_order(value)
-        return new_obj
-    elif isinstance(obj, list):
-        return [reverse_logic_order(i) for i in obj]
-    else:
-        return obj  # строка или число — не меняем
-
-
 def get_first_operator(filter_string: str) -> str:
     # Находим первое вхождение AND или OR
     match = re.search(r"\b(AND|OR)\b", filter_string)
     return match.group(1) if match else None
 
 
-def reverse_logical_lists(obj):
-    if isinstance(obj, dict):
-        new_obj = {}
-        for key, value in obj.items():
-            print(f"{key}{value}")
-            # Если ключ — "AND" или "OR", и значение — список
-            if key in ("AND", "OR") and isinstance(value, list):
-                # Реверс списка + рекурсивно на каждом элементе
-                new_obj[key] = [reverse_logical_lists(v) for v in reversed(value)]
-            else:
-                new_obj[key] = reverse_logical_lists(value)
-        return new_obj
-    elif isinstance(obj, list):
-        return [reverse_logical_lists(item) for item in obj]
-    else:
-        return obj  # примитив (строка, число, dict-поле)
-
-
-def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
-    OR_BLOCKS_RESULT = {"AND": []}
+def create_or_block(or_expressions: list[str], reverse: bool = True) -> dict:
+    result = {"AND": []}
     top_or_block = {"OR": []}
     simple_ors = []
     and_blocks = []
 
     if reverse:
-        OR_PARTS = list(reversed(OR_PARTS))
+        or_expressions = list(reversed(or_expressions))
 
-    for or_part in OR_PARTS:
-        if or_part == "OR":
-            continue
-
-        AND_PARTS = [p.strip() for p in re.split(r"(\bAND\b)", or_part)]
-
-        if len(AND_PARTS) > 1:
-            parsed_and = create_nested_and(AND_PARTS, last_result=False)
+    for or_expression in or_expressions:
+        and_expressions = [p.strip() for p in re.split(r"(\bAND\b)", or_expression)]
+        if len(and_expressions) > 1:
+            parsed_and = create_nested_and(and_expressions, last_result=False)
             and_blocks.append(parsed_and)
         else:
-            parsed_simple = _parse_expression(or_part)
+            parsed_simple = _parse_expression(or_expression)
             simple_ors.append(parsed_simple)
 
     # 🔁 Объединяем простые OR в один OR-блок, если их несколько
@@ -131,37 +91,32 @@ def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
         top_or_block["OR"].extend(and_blocks)
         if simple_or_expr:
             top_or_block["OR"].append(simple_or_expr)
-        OR_BLOCKS_RESULT["AND"].append(top_or_block)
+        result["AND"].append(top_or_block)
     elif simple_or_expr:
-        OR_BLOCKS_RESULT["AND"].append(simple_or_expr)
+        result["AND"].append(simple_or_expr)
     if not reverse:
-        OR_BLOCKS_RESULT["AND"][0]["OR"].reverse()
-    return OR_BLOCKS_RESULT
+        result["AND"][0]["OR"].reverse()
+    return result
 
 
 def parse_filter_string(filter_string: str) -> dict:
     filter_string = filter_string.strip()
-    print(f"{filter_string=}")
-    first_op = get_first_operator(filter_string)
+    first_operator = get_first_operator(filter_string)
 
-    # Разбиваем по OR, OR могут быть либо их не будет вообще. Если нет, то строка остается такой какая была
-    OR_PARTS = [p.strip() for p in re.split(r"\bOR\b", filter_string)]
+    or_expressions = [p.strip() for p in re.split(r"\bOR\b", filter_string)]
 
     # Нет вложенных OR вообще
-    if len(OR_PARTS) == 1:
-        AND_PARTS = [p.strip() for p in re.split(r"(\bAND\b)", filter_string)]
+    if len(or_expressions) == 1:
+        and_expressions = [p.strip() for p in re.split(r"(\bAND\b)", filter_string)]
         # нет вложенных AND вообще
-        if len(AND_PARTS) == 1:
-            return {"AND": [_parse_expression(AND_PARTS[0])]}
+        if len(and_expressions) == 1:
+            return {"AND": [_parse_expression(and_expressions[0])]}
         # Есть Вложенные AND
         else:
-            return create_nested_and(AND_PARTS)
+            return create_nested_and(and_expressions)
     # Если есть OR, то начинаем обработку
     else:
-        reverse = True
-        if first_op == "AND":
-            reverse = False
-        return create_or_block(OR_PARTS, reverse)
+        return create_or_block(or_expressions, first_operator == "OR")
 
 
 def generate_filter(
