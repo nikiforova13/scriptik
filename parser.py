@@ -12,28 +12,6 @@ FilterKey = {
     "Группы": "groups",
 }
 
-# def sort_blocks(node):
-#     if isinstance(node, dict):
-#         sorted_node = {}
-#         for key, value in node.items():
-#             if key in ("AND", "OR") and isinstance(value, list):
-#                 value = [sort_blocks(item) for item in value]
-#                 # Сортировка по key, затем по value
-#                 value = sorted(
-#                     value,
-#                     key=lambda x: (
-#                         x.get("key", "") if isinstance(x, dict) else "",
-#                         x.get("value", "") if isinstance(x, dict) else str(x),
-#                     ),
-#                 )
-#             else:
-#                 value = sort_blocks(value)
-#             sorted_node[key] = value
-#         return sorted_node
-#     elif isinstance(node, list):
-#         return [sort_blocks(item) for item in node]
-#     return node
-
 
 def _parse_expression(cond: str) -> dict | None:
     pattern = r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)"
@@ -90,10 +68,13 @@ def reverse_logic_order(obj):
     else:
         return obj  # строка или число — не меняем
 
+
 def get_first_operator(filter_string: str) -> str:
     # Находим первое вхождение AND или OR
-    match = re.search(r'\b(AND|OR)\b', filter_string)
+    match = re.search(r"\b(AND|OR)\b", filter_string)
     return match.group(1) if match else None
+
+
 def reverse_logical_lists(obj):
     if isinstance(obj, dict):
         new_obj = {}
@@ -110,7 +91,6 @@ def reverse_logical_lists(obj):
         return [reverse_logical_lists(item) for item in obj]
     else:
         return obj  # примитив (строка, число, dict-поле)
-
 
 
 def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
@@ -157,7 +137,6 @@ def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
     if not reverse:
         OR_BLOCKS_RESULT["AND"][0]["OR"].reverse()
     return OR_BLOCKS_RESULT
-
 
 
 def parse_filter_string(filter_string: str) -> dict:

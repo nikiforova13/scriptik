@@ -90,10 +90,13 @@ def reverse_logic_order(obj):
     else:
         return obj  # строка или число — не меняем
 
+
 def get_first_operator(filter_string: str) -> str:
     # Находим первое вхождение AND или OR
-    match = re.search(r'\b(AND|OR)\b', filter_string)
+    match = re.search(r"\b(AND|OR)\b", filter_string)
     return match.group(1) if match else None
+
+
 def reverse_logical_lists(obj):
     if isinstance(obj, dict):
         new_obj = {}
@@ -112,7 +115,6 @@ def reverse_logical_lists(obj):
         return obj  # примитив (строка, число, dict-поле)
 
 
-
 def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
     OR_BLOCKS_RESULT = {"AND": []}
     OR_BLOCK_AND_OR_IN_OR = {"OR": []}
@@ -123,7 +125,7 @@ def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
     i = 0
     print(f"{OR_PARTS=}")
     filtered_parts = [part for part in OR_PARTS if "AND" not in part]
-    print('dddddddd',filtered_parts)
+    print("dddddddd", filtered_parts)
 
     for or_part in OR_PARTS:
         AND_PARTS = [p.strip() for p in re.split(r"(\bAND\b)", or_part)]
@@ -137,7 +139,7 @@ def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
         else:
             # Если AND отсутствует, значит у нас есть только OR. Если у нас несколько выражений OR то объединяем их в 1 блок OR - OR_TOGETHER
             # Если у нас 1 выражение OR, то просто добавляем в OR_TOGETHER
-            if len(filtered_parts) > 1 :
+            if len(filtered_parts) > 1:
                 print("JDJDJDJDJDJJDJ")
                 OR_TOGETHER["OR"].append(
                     _parse_expression(or_part)
@@ -157,7 +159,6 @@ def create_or_block(OR_PARTS: list[str], reverse: bool) -> dict:
         )  # В этот же блок добавляем несколько OR . Это для соединения OR/AND вместе
 
     # print(f'{OR_BLOCK_AND_OR_IN_OR["OR"]=}')
-
 
     # Если у нас есть и OR и AND выражения, которые объединены в блоке OR, то добавляем в блок AND это все
     if OR_BLOCK_AND_OR_IN_OR["OR"] != []:

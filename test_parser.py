@@ -28,10 +28,6 @@ TEST_TAGS = ["OS:Linux"]
     ],
 )
 def test_parser_string(test_input, excepted_result):
-    # assert (
-    #     generate_filter(TEST_HOSTNAME, TEST_TAGS, filter_string=test_input)
-    #     == excepted_result
-    # )
     result = generate_filter(
         filter_string=test_input, hostname=TEST_HOSTNAME, tags=TEST_TAGS
     )
