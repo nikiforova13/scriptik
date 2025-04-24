@@ -382,3 +382,57 @@ parse_result_14 = {
         ]
     }
 }
+input_string_15 = "Теги !== Application:CPU OR Теги == AA:AA AND Теги = IS:Обнаружение OR Теги !== Application:Disk sdb AND Теги = ENV:TEST"
+parse_result_15 = {
+    "filter": {
+        "AND": [
+            {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
+            {"OR": [{"key": "tags", "operator": "==", "value": "OS:Linux"}]},
+            {
+                "AND": [
+                    {
+                        "OR": [
+                            {
+                                "AND": [
+                                    {
+                                        "key": "tags",
+                                        "operator": "=",
+                                        "value": "ENV:TEST",
+                                    },
+                                    {
+                                        "key": "tags",
+                                        "operator": "!==",
+                                        "value": "Application:Disk sdb",
+                                    },
+                                ]
+                            },
+                            {
+                                "OR": [
+                                    {
+                                        "AND": [
+                                            {
+                                                "key": "tags",
+                                                "operator": "=",
+                                                "value": "IS:Обнаружение",
+                                            },
+                                            {
+                                                "key": "tags",
+                                                "operator": "==",
+                                                "value": "AA:AA",
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        "key": "tags",
+                                        "operator": "!==",
+                                        "value": "Application:CPU",
+                                    },
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            },
+        ]
+    }
+}

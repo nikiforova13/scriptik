@@ -84,31 +84,55 @@ def create_nested_or(expressions: list[dict] | None = None) -> dict:
 
 
 def create_blocks(or_expressions: list[str], reverse: bool = True) -> dict:
+    """
+    Собирает логическую структуру из выражений, содержащих OR и вложенные AND.
+    """
     result = {"AND": []}
 
     if reverse:
-        or_expressions.reverse()
+        or_expressions = list(reversed(or_expressions))
 
-    simple_or_blocks, and_blocks = [], []
-
+    ordered_or_parts = []
     for or_expr in or_expressions:
         and_parts = split_string_into_expressions(or_expr, r"(\bAND\b)")
         if len(and_parts) > 1:
-            and_blocks.append(create_nested_and(and_parts, last_result=False))
+            ordered_or_parts.append(create_nested_and(and_parts, last_result=False))
         else:
-            simple_or_blocks.append(_parse_expression(or_expr.strip()))
+            ordered_or_parts.append(_parse_expression(or_expr.strip()))
 
-    if and_blocks:
-        or_block = {"OR": and_blocks}
-        if simple_or_blocks:
-            nested_or = create_nested_or(simple_or_blocks)
-            or_block["OR"].append(nested_or)
-        result["AND"].append(or_block)
-    elif simple_or_blocks:
-        result["AND"].append(create_nested_or(simple_or_blocks))
+    contains_nested_and_expression = any(
+        isinstance(part, dict) and "AND" in part for part in ordered_or_parts
+    )
+    contains_multiple_expressions = len(ordered_or_parts) > 1
 
-    if not reverse:
+    if contains_nested_and_expression and contains_multiple_expressions:
+        nested_or = create_nested_or(ordered_or_parts)
+        result["AND"].append(nested_or)
+    else:
+        simple_or_blocks, and_blocks = [], []
+
+        for part in ordered_or_parts:
+            if isinstance(part, dict) and "AND" in part:
+                and_blocks.append(part)
+            else:
+                simple_or_blocks.append(part)
+
+        if and_blocks:
+            or_block = {"OR": and_blocks}
+            if simple_or_blocks:
+                or_block["OR"].append(create_nested_or(simple_or_blocks))
+            result["AND"].append(or_block)
+        elif simple_or_blocks:
+            result["AND"].append(create_nested_or(simple_or_blocks))
+
+    if (
+        not reverse
+        and result["AND"]
+        and isinstance(result["AND"][0], dict)
+        and "OR" in result["AND"][0]
+    ):
         result["AND"][0]["OR"].reverse()
+
     return result
 
 
@@ -118,15 +142,11 @@ def create_filter_from_string(filter_string: str) -> dict:
 
     or_expressions = split_string_into_expressions(filter_string, r"\bOR\b")
 
-    # Нет вложенных OR вообще
     if len(or_expressions) == 1:
         and_expressions = split_string_into_expressions(filter_string, r"(\bAND\b)")
-        # нет вложенных AND вообще
         if len(and_expressions) == 1:
             return {"AND": [_parse_expression(and_expressions[0])]}
-        # Есть Вложенные AND
         return create_nested_and(and_expressions)
-    # Если есть OR, то начинаем обработку
     return create_blocks(or_expressions, first_operator == "OR")
 
 

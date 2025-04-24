@@ -25,6 +25,7 @@ TEST_TAGS = ["OS:Linux"]
         (input_string_12, parse_result_12),
         (input_string_13, parse_result_13),
         (input_string_14, parse_result_14),
+        (input_string_15, parse_result_15),
     ],
 )
 def test_parser_string(test_input, excepted_result):
