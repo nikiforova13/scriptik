@@ -32,6 +32,17 @@ def _parse_expression(expression: str) -> dict | None:
 
 
 def create_nested_and(expressions: list[str], last_result: bool = True) -> dict:
+    """
+    Создаёт вложенные AND-выражения из строки, разбитой по "AND".
+
+    Пример:
+    ["A", "AND", "B", "AND", "C"] →
+    {"AND": [{"AND": ["С", {"AND": ["B", "А"]}]}]}
+
+    :param expressions: Список выражений с "AND" разделителем
+    :param last_result: Если True — оборачивает результат ещё одним "AND" уровнем
+    :return: Словарь с вложенными AND-условиями
+    """
     expressions.reverse()
     result = {"AND": []}
     current_result = result["AND"]
@@ -52,7 +63,10 @@ def create_nested_and(expressions: list[str], last_result: bool = True) -> dict:
 def create_nested_or(expressions: list[dict] | None = None) -> dict | dict:
     """
     Создаёт вложенные OR-выражения, например:
-    [A, B, C] -> {"OR": [A, {"OR": [B, C]}]}
+    [A, B, C] -> {"OR": [С, {"OR": [B, A]}]}
+
+    :param expressions: Список выражений, которые нужно вложить по OR
+    :return: Словарь с вложенными OR-условиями
     """
     if not expressions:
         return {}
