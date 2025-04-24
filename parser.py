@@ -64,7 +64,7 @@ def create_nested_and(expressions: list[str], last_result: bool = True) -> dict:
     return {"AND": [result]} if last_result else result
 
 
-def create_nested_or(expressions: list[dict] | None = None) -> dict | dict:
+def create_nested_or(expressions: list[dict] | None = None) -> dict:
     """
     Создаёт вложенные OR-выражения, например:
     [A, B, C] -> {"OR": [С, {"OR": [B, A]}]}
