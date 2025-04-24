@@ -1,7 +1,5 @@
 import pytest
 from test_data import *
-
-# from parser import generate_filter
 from parser import generate_filter
 
 TEST_HOSTNAME = "FAKE32"
