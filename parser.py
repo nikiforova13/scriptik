@@ -18,6 +18,10 @@ def get_first_operator(filter_string: str) -> str | None:
     return match.group(1) if match else None
 
 
+def split_string_into_expressions(s: str, pattern: str) -> list[str]:
+    return [p.strip() for p in re.split(pattern, s)]
+
+
 def _parse_expression(expression: str) -> dict | None:
     match = re.match(r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)", expression.strip())
     if match:
@@ -88,7 +92,7 @@ def create_blocks(or_expressions: list[str], reverse: bool = True) -> dict:
     simple_or_blocks, and_blocks = [], []
 
     for or_expr in or_expressions:
-        and_parts = [p.strip() for p in re.split(r"(\bAND\b)", or_expr)]
+        and_parts = split_string_into_expressions(or_expr, r"(\bAND\b)")
         if len(and_parts) > 1:
             and_blocks.append(create_nested_and(and_parts, last_result=False))
         else:
@@ -112,11 +116,11 @@ def create_filter_from_string(filter_string: str) -> dict:
     filter_string = filter_string.strip()
     first_operator = get_first_operator(filter_string)
 
-    or_expressions = [p.strip() for p in re.split(r"\bOR\b", filter_string)]
+    or_expressions = split_string_into_expressions(filter_string, r"\bOR\b")
 
     # Нет вложенных OR вообще
     if len(or_expressions) == 1:
-        and_expressions = [p.strip() for p in re.split(r"(\bAND\b)", filter_string)]
+        and_expressions = split_string_into_expressions(filter_string, r"(\bAND\b)")
         # нет вложенных AND вообще
         if len(and_expressions) == 1:
             return {"AND": [_parse_expression(and_expressions[0])]}
