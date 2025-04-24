@@ -13,9 +13,13 @@ FilterKey = {
 }
 
 
+def get_first_operator(filter_string: str) -> str | None:
+    match = re.search(r"\b(AND|OR)\b", filter_string)
+    return match.group(1) if match else None
+
+
 def _parse_expression(expression: str) -> dict | None:
-    pattern = r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)"
-    match = re.match(pattern, expression.strip())
+    match = re.match(r"(\w+)\s*(==|!=|=|!==)\s*([\w:\.\- ]+)", expression.strip())
     if match:
         key, operator, value = match.groups()
         return {
@@ -27,68 +31,25 @@ def _parse_expression(expression: str) -> dict | None:
     raise ValueError(f"Не удалось распарсить фильтр: {expression}")
 
 
-def create_and_block(AND_PARTS, last_result: bool = True) -> dict:
-    AND_PARTS.reverse()
+def create_nested_and(expressions: list[str], last_result: bool = True) -> dict:
+    expressions.reverse()
     result = {"AND": []}
-    current = result["AND"]
+    current_result = result["AND"]
     i = 0
-
-    while i < len(AND_PARTS):
-        current_elem = AND_PARTS[i]
-        if current_elem == "AND":
-            # Проверка: есть ли элемент после AND и есть ли что-то после элемента него
-            if (i + 2) < len(
-                AND_PARTS
-            ):  # ['Flp != No', 'AND', 'Ack = Commented', 'AND', 'Источник != self-dev', 'AND', 'Теги = Application']
-                new_and = {
-                    "AND": []
-                }  # например проверяем есть ли элемент после 'Теги = Application' на этапе когда мы на элементе 'AND'
-                current.append(new_and)
-                current = new_and["AND"]
+    while i < len(expressions):
+        current_exp = expressions[i]
+        if current_exp == "AND":
+            if (i + 2) < len(expressions):
+                new_nested_and = {"AND": []}
+                current_result.append(new_nested_and)
+                current_result = new_nested_and["AND"]
         else:
-            current.append(_parse_expression(current_elem))
+            current_result.append(_parse_expression(current_exp))
         i += 1
     return {"AND": [result]} if last_result else result
 
 
-def get_first_operator(filter_string: str) -> str:
-    # Находим первое вхождение AND или OR
-    match = re.search(r"\b(AND|OR)\b", filter_string)
-    return match.group(1) if match else None
-
-
-def create_or_block(or_expressions: list[str], reverse: bool = True) -> dict:
-    if reverse:
-        or_expressions.reverse()
-
-    simple_ors, and_blocks = [], []
-
-    for expr in or_expressions:
-        and_parts = [p.strip() for p in re.split(r"(\bAND\b)", expr)]
-        if len(and_parts) > 1:
-            and_blocks.append(create_and_block(and_parts, last_result=False))
-        else:
-            simple_ors.append(_parse_expression(expr.strip()))
-
-    result = {"AND": []}
-
-    # Если есть AND-блоки
-    if and_blocks:
-        or_block = {"OR": and_blocks}
-        if simple_ors:
-            # Построим вложенную OR-цепочку из простых выражений
-            nested_or = build_nested_or(simple_ors)
-            or_block["OR"].append(nested_or)
-        result["AND"].append(or_block)
-    elif simple_ors:
-        # Только OR — строим вложенность
-        result["AND"].append(build_nested_or(simple_ors))
-    if not reverse:
-        result['AND'][0]['OR'].reverse()
-    return result
-
-
-def build_nested_or(expressions: list[dict] | None = None) -> dict | dict:
+def create_nested_or(expressions: list[dict] | None = None) -> dict | dict:
     """
     Создаёт вложенные OR-выражения, например:
     [A, B, C] -> {"OR": [A, {"OR": [B, C]}]}
@@ -104,7 +65,38 @@ def build_nested_or(expressions: list[dict] | None = None) -> dict | dict:
     return nested
 
 
-def parse_filter_string(filter_string: str) -> dict:
+def create_blocks(or_expressions: list[str], reverse: bool = True) -> dict:
+    result = {"AND": []}
+
+    if reverse:
+        or_expressions.reverse()
+
+    simple_or_blocks, and_blocks = [], []
+
+    for or_expr in or_expressions:
+        and_parts = [p.strip() for p in re.split(r"(\bAND\b)", or_expr)]
+        if len(and_parts) > 1:
+            and_blocks.append(create_nested_and(and_parts, last_result=False))
+        else:
+            simple_or_blocks.append(_parse_expression(or_expr.strip()))
+
+    # Если есть AND-блоки
+    if and_blocks:
+        or_block = {"OR": and_blocks}
+        if simple_or_blocks:
+            # Построим вложенную OR-цепочку из простых выражений
+            nested_or = create_nested_or(simple_or_blocks)
+            or_block["OR"].append(nested_or)
+        result["AND"].append(or_block)
+    elif simple_or_blocks:
+        # Только OR — строим вложенность
+        result["AND"].append(create_nested_or(simple_or_blocks))
+    if not reverse:
+        result["AND"][0]["OR"].reverse()
+    return result
+
+
+def create_filter_from_string(filter_string: str) -> dict:
     filter_string = filter_string.strip()
     first_operator = get_first_operator(filter_string)
 
@@ -117,9 +109,9 @@ def parse_filter_string(filter_string: str) -> dict:
         if len(and_expressions) == 1:
             return {"AND": [_parse_expression(and_expressions[0])]}
         # Есть Вложенные AND
-        return create_and_block(and_expressions)
+        return create_nested_and(and_expressions)
     # Если есть OR, то начинаем обработку
-    return create_or_block(or_expressions, first_operator == "OR")
+    return create_blocks(or_expressions, first_operator == "OR")
 
 
 def generate_filter(
@@ -127,7 +119,7 @@ def generate_filter(
     tags: list[str],
     filter_string: str | None = None,
 ) -> dict:
-    extra_filter = parse_filter_string(filter_string) if filter_string else None
+    extra_filter = create_filter_from_string(filter_string) if filter_string else None
     filter = {
         "filter": {
             "AND": [
@@ -151,7 +143,7 @@ TEST_TAGS = ["OS:Linux"]
 # res = generate_filter(filter_string="Теги != Application:Inventory AND Теги = 100",        hostname=TEST_HOSTNAME, tags=TEST_TAGS
 # )
 res = generate_filter(
-    filter_string="Теги = Application AND Источник != self-dev AND Ack = Commented AND Flp != No",
+    filter_string="Теги = Application AND Источник != self-dev__1 AND Ack = Commented AND Flp != No",
     hostname=TEST_HOSTNAME,
     tags=TEST_TAGS,
 )
