@@ -94,17 +94,15 @@ def create_blocks(or_expressions: list[str], reverse: bool = True) -> dict:
         else:
             simple_or_blocks.append(_parse_expression(or_expr.strip()))
 
-    # Если есть AND-блоки
     if and_blocks:
         or_block = {"OR": and_blocks}
         if simple_or_blocks:
-            # Построим вложенную OR-цепочку из простых выражений
             nested_or = create_nested_or(simple_or_blocks)
             or_block["OR"].append(nested_or)
         result["AND"].append(or_block)
     elif simple_or_blocks:
-        # Только OR — строим вложенность
         result["AND"].append(create_nested_or(simple_or_blocks))
+
     if not reverse:
         result["AND"][0]["OR"].reverse()
     return result
