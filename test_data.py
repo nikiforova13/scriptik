@@ -2,7 +2,7 @@
 
 
 input_string_1 = "Теги != Application:Inventory"
-parse_result_1 = {
+excepted_result_1 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -16,7 +16,7 @@ parse_result_1 = {
     }
 }
 input_string_2 = "Теги == Application:Inventory"
-parse_result_2 = {
+excepted_result_2 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -30,7 +30,7 @@ parse_result_2 = {
     }
 }
 input_string_3 = "Теги = Application:Inventory"
-parse_result_3 = {
+excepted_result_3 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -44,7 +44,7 @@ parse_result_3 = {
     }
 }
 input_string_4 = "Теги !== Application:Inventory"
-parse_result_4 = {
+excepted_result_4 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -59,7 +59,7 @@ parse_result_4 = {
 }
 
 input_string_5 = "Теги !== Application:Inventory OR Теги == Application:Disk sda"
-parse_result_5 = {
+excepted_result_5 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -87,7 +87,7 @@ parse_result_5 = {
 }
 
 input_string_6 = "Теги != Application:Inventory AND Теги = 100"
-parse_result_6 = {
+excepted_result_6 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -112,7 +112,7 @@ parse_result_6 = {
 input_string_7 = (
     "Теги !== Application:Inventory OR Теги == Application:Disk sda AND Группы =12"
 )
-parse_result_7 = {
+excepted_result_7 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -144,7 +144,7 @@ parse_result_7 = {
     }
 }
 input_string_8 = "CL = BC"
-parse_result_8 = {
+excepted_result_8 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -154,7 +154,7 @@ parse_result_8 = {
     }
 }
 input_string_9 = "Теги = Application AND Важность != Average"
-parse_result_9 = {
+excepted_result_9 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -176,7 +176,7 @@ input_string_10 = (
     "Теги = Application OR Важность != Average OR КЕ = one AND Теги == Inventory"
 )
 
-parse_result_10 = {
+excepted_result_10 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -219,7 +219,7 @@ parse_result_10 = {
 input_string_11 = (
     "Теги = Application AND Источник != self-dev AND Ack = Commented AND Flp != No"
 )
-parse_result_11 = {
+excepted_result_11 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -261,7 +261,7 @@ parse_result_11 = {
 }
 
 input_string_12 = "Теги !== TAG1 OR Теги != TAG2 OR Теги != ENV: TEST OR Теги != Application: Disk sda OR Теги !== AA:AA"
-parse_result_12 = {
+excepted_result_12 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -312,7 +312,7 @@ parse_result_12 = {
 }
 
 input_string_13 = "Теги != Application:Inventory AND Теги = 100 OR Группы != group1"
-parse_result_13 = {
+excepted_result_13 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -342,7 +342,7 @@ parse_result_13 = {
 
 
 input_string_14 = "Теги != Application:Inventory AND Теги = 100 AND Группы != group1 OR Теги == tag_test"
-parse_result_14 = {
+excepted_result_14 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
@@ -383,7 +383,7 @@ parse_result_14 = {
     }
 }
 input_string_15 = "Теги !== Application:CPU OR Теги == AA:AA AND Теги = IS:Обнаружение OR Теги !== Application:Disk sdb AND Теги = ENV:TEST"
-parse_result_15 = {
+excepted_result_15 = {
     "filter": {
         "AND": [
             {"OR": [{"key": "host", "operator": "==", "value": "FAKE32"}]},
